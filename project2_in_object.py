@@ -18,7 +18,8 @@ class GethUtil(object):
         return contract
 
     # 卖家托管给平台预估手续费(这个不用你掉)
-    def sendToUsEstimate(self,sellerAddress, amount):
+    def sendToUsEstimate(self,seller, amount):
+        sellerAddress=self.web3.toChecksumAddress(seller)
         approveAmount = self.contract.functions.approve(self.ourAddress, amount).estimateGas({'from': sellerAddress})
         sendToBuyerAmount = int(3 * approveAmount / 2)
         sendToUsAmount = int(0.1 * (approveAmount + sendToBuyerAmount))
@@ -31,14 +32,16 @@ class GethUtil(object):
         return self.web3.personal.newAccount(password)
 
     # 获取代币余额
-    def getBalance(self,address):
+    def getBalance(self,rawAddress):
+        address=self.web3.toChecksumAddress(rawAddress)
         if (self.web3.isAddress(address)):
             return self.contract.functions.balanceOf(address).call()
         else:
             print("地址无效")
 
     # 卖家托管币给平台
-    def sendToUs(self,sellerAddress, sellerPassword,coinAmount):
+    def sendToUs(self,seller, sellerPassword,coinAmount):
+        sellerAddress=self.web3.toChecksumAddress(seller)
         if (self.getBalance(sellerAddress) < coinAmount):
             print("卖家代币余额不足")
             return
@@ -59,7 +62,8 @@ class GethUtil(object):
                 if (sendEthToUsResult):
                     self.web3.personal.lockAccount(sellerAddress)
     #转给买家
-    def sendToBuyer(self,sellerAddress, buyerAddress,coinAmount):
+    def sendToBuyer(self,seller, buyerAddress,coinAmount):
+        sellerAddress=self.web3.toChecksumAddress(seller)
         if coinAmount>self.contract.functions.allowance(sellerAddress,self.ourAddress).call():
             print("卖家托管的币不足")
             return
@@ -75,7 +79,8 @@ class GethUtil(object):
             print("解锁失败")
 
     # 获取账户的eth余额
-    def getEthBalance(self,address):
+    def getEthBalance(self,rawAddress):
+        address=self.web3.toChecksumAddress(rawAddress)
         return self.web3.eth.getBalance(address)
 
     # 设置一个eth可以买多少个代币,一个eth买到的币等于10^18/buyprice
@@ -93,7 +98,8 @@ class GethUtil(object):
         return amount * sellPrice
 
     # 用户购买代币，也就是认购
-    def buyCoin(self,userAddress, userPassword, buyAmount):
+    def buyCoin(self,rawUserAddress, userPassword, buyAmount):
+        userAddress=self.web3.toChecksumAddress(rawUserAddress)
         needGiveEthAmount = self.needPayEthAmount(buyAmount)
         if (self.getEthBalance(userAddress) < self.needPayEthAmount(buyAmount) + self.buyOurCoinEstimate(userAddress, buyAmount)):
             print("账户eth不足")
@@ -105,7 +111,8 @@ class GethUtil(object):
                     print("购买交易发起成功 hash值是" + self.web3.toHex(buyResult))
 
     # 投资,第一个参数是想投资的账户地址，第二个是活动账户的密码，第三个是投资数量
-    def invest(self,activeAccount, activeAccountPassword, investAmount):
+    def invest(self,rawActiveAccount,investAmount):
+        activeAccount=self.web3.toChecksumAddress(rawActiveAccount)
         # 转账给投资账户
         investAccount = self.getBindInvestAccount(activeAccount)
         if (int(investAccount, 16) == 0):
@@ -167,8 +174,9 @@ class GethUtil(object):
 
     def getCanInvestMaxAmount(self,activeAccount):
         return self.contract.functions.maxCanInvestAmount(activeAccount).call()
-
-    def buyOurCoinEstimate(self,buyerAddress, buyAmount):
+    #认购计算手续费
+    def buyOurCoinEstimate(self,rawBuyerAddress, buyAmount):
+        buyerAddress=rawBuyerAddress
         return self.contract.functions.buy().estimateGas({'from': buyerAddress, 'value': self.needPayEthAmount(buyAmount)})
 if __name__ =="__main__":
     geth = GethUtil()
@@ -206,14 +214,14 @@ if __name__ =="__main__":
 
 
     #设置一个eth买10000000个币,0是卖给平台的价格，设置成0就好(后台有个设置价格的按钮，按了之后把管理员输入的数量当作第二个参数传入就可以)
-    geth.setPrice(0,10000000)
+    #geth.setPrice(0,10000000)
 
     # 一期认购.认购1000个,认购最大可投资数量会增加
-    #geth.buyCoin(sellerAddress,sellerPassword,1000)
+    geth.buyCoin(sellerAddress,sellerPassword,1000)
 
 
     # 投资10个(账户和密码是想参与认购的人的账户的)
-    #geth.invest(sellerAddress,sellerPassword, 10 * 10 ** 18)
+    geth.invest(sellerAddress,10 * 10 ** 18)
 
 
     # 奖励,我这里奖励investAccount 100wei个以太币，为了方便看余额，第一个参数最好放一个以太币余额为0的账户,第一个参数是活动账户
@@ -221,7 +229,7 @@ if __name__ =="__main__":
 
 
     # 释放投资账户的10个币
-    #geth.releaseCoin(investAccount,10*10**18)
+    geth.releaseCoin(investAccount,10*10**18)
 
 
     # 投资账户之间互转，得确认第三个参数是一个投资账户(这个先别急着加)
