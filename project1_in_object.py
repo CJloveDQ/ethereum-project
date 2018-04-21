@@ -8,7 +8,7 @@ class GethUtil(object):
         assert self.web3.isConnected(),'connect fail'
         self.ourAddress = self.web3.toChecksumAddress("0x05A94caaCdb83e8B9E0b9a582988de448440ECc1")
         self.ourPassword = "domore0325"
-
+        self.contract=self.getContract()
     # 获得合约(这个不用你掉)
     def getContract(self):
         contractAddress = self.web3.toChecksumAddress('0xe8fd9a6399c96a5c213f01998f30357cc25d5a79')
@@ -17,10 +17,10 @@ class GethUtil(object):
         return contract
 
     # 卖家托管给平台预估手续费(这个不用你掉)
-    def sendToUsEstimate(self,seller, amount):
+    def sendToUsEstimate(self,seller,amount):
+        print(amount)
         sellerAddress=self.web3.toChecksumAddress(seller)
-        contract = self.getContract()
-        approveAmount = contract.functions.approve(self.ourAddress, amount).estimateGas({'from': sellerAddress})
+        approveAmount = self.contract.functions.approve(self.ourAddress, amount).estimateGas({'from': sellerAddress})
         sendToBuyerAmount = int(3 * approveAmount / 2)
         sendToUsAmount = int(0.1 * (approveAmount + sendToBuyerAmount))
         sendToUsGasAmount = self.web3.eth.estimateGas({'from': sellerAddress, 'to': self.ourAddress, 'value': sendToUsAmount + sendToBuyerAmount})
@@ -35,28 +35,28 @@ class GethUtil(object):
     def getBalance(self,rawAddress):
         address=rawAddress
         if (self.web3.isAddress(address)):
-            contract = self.getContract()
-            return contract.functions.balanceOf(address).call()
+            return self.contract.functions.balanceOf(address).call()/(10**6)
         else:
             print("地址无效")
 
     # 卖家托管币给平台
-    def sendToUs(self,seller, sellerPassword,coinAmount):
+    def sendToUs(self,seller, sellerPassword,Amount):
         sellerAddress=self.web3.toChecksumAddress(seller)
-        contract = self.getContract()
-        if (self.getBalance(sellerAddress) < coinAmount):
+        hadSentToUs=self.contract.functions.allowance(sellerAddress,geth.ourAddress).call()
+        coinAmount=hadSentToUs+int(Amount*10**6)
+        if (int(self.getBalance(sellerAddress)*10**6) < coinAmount):
             print("卖家代币余额不足")
             return
-        if (self.getEthBalance(sellerAddress) < self.sendToUsEstimate(sellerAddress, coinAmount)):
+        if (int(self.getEthBalance(sellerAddress)*10**18) < self.sendToUsEstimate(sellerAddress, coinAmount)):
             print("卖家账户手续费不足")
             return
         unlockResult = self.web3.personal.unlockAccount(sellerAddress, sellerPassword)
         if (unlockResult):
             print("解锁卖家账户成功")
-            sendResult = contract.functions.approve(self.ourAddress, coinAmount).transact({'from': sellerAddress})
+            sendResult = self.contract.functions.approve(self.ourAddress, coinAmount).transact({'from': sellerAddress})
             if (sendResult):
                 print("托管给平台交易发起" + self.web3.toHex(sendResult))
-                approveAmount = contract.functions.approve(self.ourAddress, coinAmount).estimateGas({'from': sellerAddress})
+                approveAmount = self.contract.functions.approve(self.ourAddress, coinAmount).estimateGas({'from': sellerAddress})
                 sendToBuyerAmount = int(3 * approveAmount / 2)
                 sendToUsAmount = int(0.1 * (approveAmount + sendToBuyerAmount))
                 sendEthToUsResult = self.web3.eth.sendTransaction(
@@ -65,17 +65,19 @@ class GethUtil(object):
                     self.web3.personal.lockAccount(sellerAddress)
         else:
              print("密码错误")
+
+
     #转给买家
-    def sendToBuyer(self,seller, buyer,coinAmount):
-        contract = self.getContract()
+    def sendToBuyer(self,seller, buyer,Amount):
+        coinAmount=int(Amount*10**6)
         buyerAddress=self.web3.toChecksumAddress(buyer)
         sellerAddress=self.web3.toChecksumAddress(seller)
-        if coinAmount>contract.functions.allowance(sellerAddress,self.ourAddress).call():
+        if coinAmount>self.contract.functions.allowance(sellerAddress,self.ourAddress).call():
             print("卖家托管的币不足")
             return
         unlockResult = self.web3.personal.unlockAccount(self.ourAddress, self.ourPassword)
         if (unlockResult):
-            sendToBuyerResult = contract.functions.transferFrom(sellerAddress, buyerAddress, coinAmount).transact({'from': self.ourAddress})
+            sendToBuyerResult = self.contract.functions.transferFrom(sellerAddress, buyerAddress, coinAmount).transact({'from': self.ourAddress})
             self.web3.personal.lockAccount(self.ourAddress)
             if (sendToBuyerResult):
                 print("转给买家交易发起 hash值是" + self.web3.toHex(sendToBuyerResult))
@@ -85,8 +87,8 @@ class GethUtil(object):
             print("解锁失败")
 
     # 转到投资账户
-    def transfer(self, From, _to, _value, fromPassword):
-        contract = self.getContract()
+    def transfer(self, From, _to,value, fromPassword):
+        _value=int(value*10**6)
         _from=self.web3.toChecksumAddress(From)
         to=self.web3.toChecksumAddress(_to)
         if (self.getBalance(_from) < _value):
@@ -95,7 +97,7 @@ class GethUtil(object):
             unlockResult = self.web3.personal.unlockAccount(_from, fromPassword)
             if (unlockResult):
                 print("解锁成功")
-                transctresult = contract.functions.transfer(to, _value).transact({'from': _from})
+                transctresult = self.contract.functions.transfer(to, _value).transact({'from': _from})
                 self.web3.personal.lockAccount(_from)
                 if (transctresult):
                     print(self.web3.toHex(transctresult))
@@ -105,8 +107,14 @@ class GethUtil(object):
     # 获取账户的eth余额
     def getEthBalance(self,rawAddress):
         address=self.web3.toChecksumAddress(rawAddress)
-        contract = self.getContract()
-        return self.web3.eth.getBalance(address)
+        return self.web3.eth.getBalance(address)/(10**18)
+
+    def getMaxCanSendTUs(self,address):
+        sellerAddress = self.web3.toChecksumAddress(address)
+        hadSentToUs = self.contract.functions.allowance(sellerAddress, geth.ourAddress).call()
+        coinBalance=(int(self.getBalance(sellerAddress)*10**6)-hadSentToUs)/(10**6)
+        return coinBalance
+
 
 if __name__ =="__main__":
     geth = GethUtil()
@@ -116,13 +124,17 @@ if __name__ =="__main__":
     #新建账户
     #print(geth.newUser("1231312321"))
     #获取代币余额
-    print(geth.getBalance(geth.ourAddress))
+    #print(geth.getBalance(geth.ourAddress))
     #获取eth余额
-    print(geth.getEthBalance(geth.ourAddress))
+    #print(geth.getEthBalance(geth.ourAddress))
     #卖家托管1个nsrc给平台
-    #geth.sendToUs(sellerAddress, sellerPassword,1*10**6)
+    #geth.sendToUs(sellerAddress,sellerPassword,0.1)
     #转给买家（注意托管给平台成功后再调用发送给买家，看是否上一步成功在https://rinkeby.etherscan.io/tx/0x0b20860a25e7fbc30bbd2d33f30214e28c46c2d8e834640efe12e03827a7516c，右上角输入上个函数输出的的hash值）
-    #geth.sendToBuyer(sellerAddress, buyerAddress,1*10**6)
-    #转一个币
-    #geth.transfer(geth.ourAddress,sellerAddress,1*10**6,geth.ourPassword)
-
+    #geth.sendToBuyer(sellerAddress, buyerAddress,0.1)
+    # print(geth.getBalance(buyerAddress))
+    # #转一个币
+    #geth.transfer(geth.ourAddress,"0xC08E04719ADCdA6594C58057dBcF2Cc6c9DcDBB7",0.1,geth.ourPassword)
+    # contract=geth.getContract()
+    # print(contract.functions.allowance(sellerAddress,geth.ourAddress).call())
+    # print(geth.getMaxCanSendTUs(sellerAddress))
+    # print(geth.getBalance(sellerAddress))
