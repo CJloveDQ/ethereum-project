@@ -24,16 +24,18 @@ var app = app || {
             }
         });
     },
-
     transfer: function(from, to, _value, fromPassword) {
         web3.personal.unlockAccount(from, fromPassword, function(error, result) {
             if (!error) {
                 app.getContract().transfer.sendTransaction(to, _value, { from: from }, function(error, data) {
                     if (!error) {
-                        hash = data;
-                        console.log(from + "  转账给  " + to + "  交易发起" + "交易hash值是" + data);
+                        alert("交易发起成功，hash值是"+data);
                         app.lockAccount(from);
                         return true;
+                    }
+                    else
+                    {
+                        return false;
                     }
                 })
             } else {
@@ -69,14 +71,34 @@ var app = app || {
         }
     }
 };
-var from = "0x18f3a6fbdd28a0488230925c3d4390f8450b7ce5"; //账户地址
-var fromPassword = 'test'
-var to = "0x50501BD42bb5A019624A8b33551cf26482248c7e"; //收款地址
-var amount = 100
-if (app.init()) {
-    app.transfer(from, to, 100, fromPassword);
-    //console.log(app.getContract())
-    console.log("收款账户余额是"+app.getBalance(to))
-} else {
-    console.log("连接失败");
-}
+
+
+//控制代码
+
+$(document).ready(
+    function() {
+        var from = "0x18f3a6fbdd28a0488230925c3d4390f8450b7ce5"; //账户地址
+        var fromPassword = 'test'
+        if (app.init()) {
+            console.log("连接成功")
+        } else {
+            console.log("连接失败");
+        }
+
+        //监听提交按钮
+        $('#button').click(function() {
+            var to = $('#address').val();
+            //判断to是不是合法地址
+            if (!app.isAddress(to)) {
+                alert("无效地址")
+            } else {
+                var amount = $('#amount').val();
+                app.transfer(from, to, amount, fromPassword);
+                //查询到交易成功之后调用这个方法查询余额
+                console.log("收款账户余额是" + app.getBalance(to));
+            }
+
+            
+        });
+    }
+);
