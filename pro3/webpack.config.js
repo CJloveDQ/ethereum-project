@@ -10,7 +10,7 @@ module.exports = {
   plugins: [
     // Copy our app's index.html to the build folder.
     new CopyWebpackPlugin([
-      { from: './app/html/test.html', to: "index.html" }
+      { from: './app/html/index.html', to: "index.html" }
     ])
   ],
   module: {
