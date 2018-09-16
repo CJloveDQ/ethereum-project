@@ -1,45 +1,38 @@
-pragma solidity ^0.4.16;
-
+pragma solidity ^0.4.24;
 contract pushMes
 {
-	struct table {
-		string [] keys;
-		string [] values;
-	}
 	
-	struct database {
-		mapping (string tableName => table) tables;
-	}
-
 	//定义数据库
-	database databases;
+  	struct table {
+		string  keys;
+		string[]  values;
+	}
+    struct database {
+		mapping (string  => table) tables;
+	}
+    mapping(string => database) databases;
+    mapping(string => bool) exsitDB;
+    
+   
+	function addTable (string databaseName,string tableName,string keys,string value) public returns(bool res)  {
+		
+			
+		if(!existSuchDatabase(databaseName))
+		{
+			//新建一个数据库
+			databases[databaseName]=database();
+            exsitDB[databaseName]=true;
+			//新建表
 
-	function addTable (string databaseName,string tableName,string [] keys,string [] values) returns(bool res) public {
-		if(!existSuchTable(databaseName,tableName))
-		{
-			return false;
 		}
-		else
-		{
-			databases[databaseName][tableName].keys = keys;
-			databases[databaseName][tableName].values = values;
-		}
+        
+		//添加数据
+		databases[databaseName].tables[tableName].keys =keys;
+		databases[databaseName].tables[tableName].values.push(value);
 	}
-	
-	function getTable (string databaseName,string tableName) returns(string [] keys,string [] values) public {
-		if(!existSuchTable(databaseName,tableName))
-		{
-			return false;
-		}
-		else
-		{
-			keys = databases[databaseName][tableName].keys;
-			values = databases[databaseName][tableName].values;
-		}
-	}
-	
-	function existSuchTable (string databaseName,string tableName) returns(bool res) internal {
-		if(tables[databaseName])
+
+	function existSuchDatabase (string databaseName) internal returns(bool res)  {
+		if(exsitDB[databaseName])
 		{
 			return true;
 		}
@@ -49,5 +42,8 @@ contract pushMes
 		}
 	}
 	
-	
+	function getTable(string databaseName,string tableName,uint index)public returns(string)
+	{
+		return databases[databaseName].tables[tableName].values[index];
+	}
 }
