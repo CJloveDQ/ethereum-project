@@ -14,7 +14,7 @@ contract pushMes
     mapping(string => bool) exsitDB;
     
    
-	function addTable (string databaseName,string tableName,string keys,string value) public returns(bool res)  {
+	function addTable (string databaseName,string tableName,string keys,string value)public returns(bool res)  {
 		
 			
 		if(!existSuchDatabase(databaseName))
@@ -42,7 +42,7 @@ contract pushMes
 		}
 	}
 	
-	function getTable(string databaseName,string tableName,uint index)public returns(string)
+	function getTable(string databaseName,string tableName,uint index) view  public returns(string)
 	{
 		return databases[databaseName].tables[tableName].values[index];
 	}
