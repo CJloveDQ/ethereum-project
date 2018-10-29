@@ -26,15 +26,8 @@
     <dependency>
   		<groupId>org.web3j</groupId>
   		<artifactId>core</artifactId>
-  		<version>3.2.0</version>
-	</dependency>
-	
-	<dependency>
-    	<groupId>org.web3j</groupId>
-    	<artifactId>parity</artifactId>
-    	<version>3.2.0</version>
-	</dependency>
-	
+  		<version>3.6.0</version>
+	</dependency>	
 	  <dependency>
 
             <groupId>net.sf.json-lib</groupId>

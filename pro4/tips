@@ -1,0 +1,6 @@
+1.web3j command tools 安装
+	brew tap web3j/web3j
+	brew install web3j
+2.生成java接口
+	solc ./pushData.sol --bin --abi --optimize -o ./
+	web3j solidity generate  ./pushMes.bin pushMes.abi -o ./ -p pushMes
